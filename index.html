@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>画像→PDF まとめ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e4e2da;--acc:#2f6f4f;--acc2:#e8f1ec;--danger:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#161815;--card:#20231f;--ink:#ecece6;--sub:#9aa095;--line:#33372f;--acc:#6cc08f;--acc2:#24342b;--danger:#f2877f}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:16px 16px 120px}
+main{max-width:640px;margin:0 auto}
+h1{font-size:20px;margin:4px 0 2px}
+.lead{color:var(--sub);font-size:14px;margin:0 0 16px}
+.drop{border:2px dashed var(--line);border-radius:16px;background:var(--card);padding:22px 16px;text-align:center;cursor:pointer;transition:.15s}
+.drop.over{border-color:var(--acc);background:var(--acc2)}
+.drop b{display:block;font-size:17px;margin-bottom:2px}
+.drop span{color:var(--sub);font-size:13px}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:0;background:var(--acc);color:#fff;border-radius:12px;padding:12px 18px;font-weight:600}
+@media(prefers-color-scheme:dark){.btn{color:#10200f}}
+.btn:disabled{opacity:.45}
+.ghost{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;font-size:14px}
+.list{display:grid;gap:10px;margin:16px 0}
+.item{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px}
+.num{width:22px;text-align:center;color:var(--sub);font-size:13px;flex:none}
+.th{width:64px;height:64px;border-radius:8px;background:var(--bg);overflow:hidden;flex:none;display:grid;place-items:center}
+.th img{max-width:100%;max-height:100%;transition:transform .2s}
+.meta{flex:1;min-width:0;font-size:13px;color:var(--sub)}
+.meta div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta .n{color:var(--ink);font-size:14px}
+.ops{display:flex;gap:4px;flex:none}
+.ops button{width:34px;height:34px;border:1px solid var(--line);background:var(--card);border-radius:8px;font-size:15px;padding:0}
+.ops button:disabled{opacity:.3}
+.ops .del{color:var(--danger)}
+.opts{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:15px}
+select,input[type=text]{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:60%}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.bar .in{max-width:640px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.bar .btn{flex:1}
+.count{font-size:13px;color:var(--sub);white-space:nowrap}
+.msg{margin-top:10px;font-size:14px;min-height:20px}
+.msg.err{color:var(--danger)}
+.empty{text-align:center;color:var(--sub);font-size:14px;margin:18px 0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.top h2{font-size:15px;margin:0}
+</style>
+</head>
+<body>
+<main>
+  <h1>画像→PDF まとめ</h1>
+  <p class="lead">複数の画像を1つのPDFにします。画像は端末の外に送信されません。</p>
+
+  <div class="drop" id="drop" role="button" tabindex="0">
+    <b>＋ 画像を選ぶ</b>
+    <span>複数選択OK／ドラッグ＆ドロップ対応</span>
+  </div>
+  <input id="file" type="file" accept="image/*" multiple hidden>
+
+  <div class="top" id="topbar" hidden>
+    <h2>並び順（上から順にページ化）</h2>
+    <button class="ghost" id="clear">全部消す</button>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">まだ画像がありません</div>
+
+  <div class="opts">
+    <div class="row"><label for="size">用紙サイズ</label>
+      <select id="size">
+        <option value="a4">A4（余白あり）</option>
+        <option value="fit">画像サイズに合わせる</option>
+        <option value="letter">Letter</option>
+      </select></div>
+    <div class="row"><label for="margin">余白</label>
+      <select id="margin">
+        <option value="0">なし</option>
+        <option value="18" selected>小</option>
+        <option value="36">標準</option>
+      </select></div>
+    <div class="row"><label for="quality">画質</label>
+      <select id="quality">
+        <option value="high">高（サイズ大）</option>
+        <option value="mid" selected>標準</option>
+        <option value="low">軽量</option>
+      </select></div>
+    <div class="row"><label for="fname">ファイル名</label>
+      <input type="text" id="fname" value="images.pdf" inputmode="latin" autocapitalize="off"></div>
+  </div>
+  <div class="msg" id="msg" role="status"></div>
+</main>
+
+<div class="bar"><div class="in">
+  <span class="count" id="count">0枚</span>
+  <button class="btn" id="make" disabled>PDFを作成して保存</button>
+</div></div>
+
+<script>
+(function(){
+  var items=[], seq=0;
+  var $=function(id){return document.getElementById(id)};
+  var list=$('list'), msg=$('msg');
+
+  function say(t,err){msg.textContent=t||'';msg.className='msg'+(err?' err':'')}
+  function kb(n){return n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB'}
+
+  function addFiles(files){
+    var n=0;
+    Array.prototype.forEach.call(files,function(f){
+      if(!/^image\//.test(f.type)&&!/\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(f.name)) return;
+      items.push({id:++seq,file:f,url:URL.createObjectURL(f),rot:0}); n++;
+    });
+    if(!n&&files.length) say('画像ファイルが見つかりませんでした',true); else say('');
+    render();
+  }
+
+  function render(){
+    list.innerHTML='';
+    items.forEach(function(it,i){
+      var d=document.createElement('div'); d.className='item';
+      d.innerHTML='<div class="num">'+(i+1)+'</div>'+
+        '<div class="th"><img alt=""></div>'+
+        '<div class="meta"><div class="n"></div><div>'+kb(it.file.size)+(it.rot?' ・ '+it.rot+'°回転':'')+'</div></div>'+
+        '<div class="ops"><button data-a="up" aria-label="上へ">↑</button><button data-a="down" aria-label="下へ">↓</button><button data-a="rot" aria-label="回転">⟳</button><button class="del" data-a="del" aria-label="削除">✕</button></div>';
+      var img=d.querySelector('img'); img.src=it.url; img.style.transform='rotate('+it.rot+'deg)';
+      d.querySelector('.n').textContent=it.file.name;
+      var ops=d.querySelectorAll('button');
+      ops[0].disabled=i===0; ops[1].disabled=i===items.length-1;
+      d.addEventListener('click',function(e){
+        var b=e.target.closest('button'); if(!b) return;
+        var a=b.dataset.a;
+        if(a==='up'&&i>0){items.splice(i-1,0,items.splice(i,1)[0])}
+        else if(a==='down'&&i<items.length-1){items.splice(i+1,0,items.splice(i,1)[0])}
+        else if(a==='rot'){it.rot=(it.rot+90)%360}
+        else if(a==='del'){URL.revokeObjectURL(it.url);items.splice(i,1)}
+        render();
+      });
+      list.appendChild(d);
+    });
+    $('empty').hidden=items.length>0;
+    $('topbar').hidden=items.length===0;
+    $('count').textContent=items.length+'枚';
+    $('make').disabled=items.length===0;
+  }
+
+  // 入力
+  var drop=$('drop'), file=$('file');
+  drop.addEventListener('click',function(){file.click()});
+  drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click()}});
+  file.addEventListener('change',function(){addFiles(file.files);file.value=''});
+  ['dragenter','dragover'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('over')})});
+  ['dragleave','drop'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('over')})});
+  document.addEventListener('drop',function(e){if(e.dataTransfer&&e.dataTransfer.files)addFiles(e.dataTransfer.files)});
+  $('clear').addEventListener('click',function(){items.forEach(function(it){URL.revokeObjectURL(it.url)});items=[];say('');render()});
+
+  // 画像→canvas→JPEG
+  function load(it){
+    if(window.createImageBitmap) return createImageBitmap(it.file).catch(function(){return legacy(it)});
+    return legacy(it);
+  }
+  function legacy(it){
+    return new Promise(function(res,rej){var im=new Image();im.onload=function(){res(im)};im.onerror=function(){rej(new Error(it.file.name+' を読み込めません'))};im.src=it.url});
+  }
+  function toJpeg(it,maxDim,q){
+    return load(it).then(function(src){
+      var w=src.width||src.naturalWidth, h=src.height||src.naturalHeight;
+      var s=Math.min(1,maxDim/Math.max(w,h)); var cw=Math.round(w*s), ch=Math.round(h*s);
+      var r=it.rot, c=document.createElement('canvas');
+      c.width=(r%180)?ch:cw; c.height=(r%180)?cw:ch;
+      var x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height);
+      x.translate(c.width/2,c.height/2); x.rotate(r*Math.PI/180);
+      x.drawImage(src,-cw/2,-ch/2,cw,ch);
+      if(src.close) src.close();
+      return new Promise(function(res,rej){
+        c.toBlob(function(b){b?b.arrayBuffer().then(function(buf){res({buf:buf,w:c.width,h:c.height})}):rej(new Error('変換に失敗しました'))},'image/jpeg',q);
+      });
+    });
+  }
+
+  var busy=false;
+  $('make').addEventListener('click',function(){
+    if(busy||!items.length) return;
+    if(!window.PDFLib){say('PDFライブラリを読み込めませんでした。再読み込みしてください。',true);return}
+    busy=true; $('make').disabled=true;
+    var Q={high:[3200,.92],mid:[2200,.85],low:[1500,.7]}[$('quality').value];
+    var mode=$('size').value, mg=+$('margin').value;
+    var base={a4:[595.28,841.89],letter:[612,792]}[mode];
+    var out;
+    PDFLib.PDFDocument.create().then(function(doc){
+      out=doc;
+      var chain=Promise.resolve();
+      items.forEach(function(it,i){
+        chain=chain.then(function(){
+          say('変換中… '+(i+1)+' / '+items.length);
+          return toJpeg(it,Q[0],Q[1]).then(function(r){
+            return doc.embedJpg(r.buf).then(function(jpg){
+              var pw,ph,m=mg;
+              if(mode==='fit'){pw=r.w*0.48;ph=r.h*0.48;m=0}
+              else{pw=base[0];ph=base[1];if(r.w>r.h){var t=pw;pw=ph;ph=t}}
+              var page=doc.addPage([pw,ph]);
+              var aw=pw-2*m, ah=ph-2*m, sc=Math.min(aw/r.w,ah/r.h);
+              var dw=r.w*sc, dh=r.h*sc;
+              page.drawImage(jpg,{x:(pw-dw)/2,y:(ph-dh)/2,width:dw,height:dh});
+            });
+          });
+        });
+      });
+      return chain;
+    }).then(function(){
+      say('PDFを書き出し中…');
+      return out.save();
+    }).then(function(bytes){
+      var blob=new Blob([bytes],{type:'application/pdf'});
+      var name=($('fname').value||'images.pdf').trim(); if(!/\.pdf$/i.test(name)) name+='.pdf';
+      var info=items.length+'ページ ・ '+kb(blob.size);
+      function plain(){
+        var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){URL.revokeObjectURL(a.href)},60000);
+        say('保存しました（'+info+'）');
+      }
+      if(!(window.claude&&claude.use)){plain();return}
+      return claude.use('downloads').then(function(dl){
+        if(!dl){plain();return}
+        return dl.save({filename:name,data:blob}).then(function(){say('保存しました（'+info+'）')},function(e){
+          say(e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした：'+(e&&e.message||''),true);
+        });
+      });
+    }).catch(function(e){
+      say('エラー：'+(e&&e.message||e),true);
+    }).then(function(){busy=false;$('make').disabled=!items.length});
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
