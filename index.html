@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>画像→PDF まとめ</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<meta name="theme-color" content="#2f6f4f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="pdf-lib.min.js"></script>
 <style>
 :root{--bg:#f6f5f1;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e4e2da;--acc:#2f6f4f;--acc2:#e8f1ec;--danger:#b3261e}
 @media(prefers-color-scheme:dark){:root{--bg:#161815;--card:#20231f;--ink:#ecece6;--sub:#9aa095;--line:#33372f;--acc:#6cc08f;--acc2:#24342b;--danger:#f2877f}}
@@ -233,6 +237,9 @@ select,input[type=text]{font:inherit;color:inherit;background:var(--bg);border:1
   });
 
   render();
+  if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
 })();
 </script>
 </body>

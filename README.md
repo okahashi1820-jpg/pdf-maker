@@ -7,3 +7,7 @@
 - PDF生成に [pdf-lib](https://pdf-lib.js.org/) を使用
 
 公開: GitHub Pages(`index.html` を配信)
+
+## PWA
+`manifest.json` と `sw.js` によりインストール可能・オフライン動作。pdf-lib は `pdf-lib.min.js` として同梱(MIT)。
+ファイルを更新したら `sw.js` の `VERSION` を上げてください。
